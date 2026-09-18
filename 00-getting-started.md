@@ -28,7 +28,7 @@ nothing below will work otherwise.
 The template repository holds a working Spring Boot skeleton with the container setup, one worked
 resource and its tests already in place.
 
-1. Open **https://github.com/<your-org>/tak24-spring-template**
+1. Open **[template](https://github.com/kuressaareametikool/SB-M8-template)**
 2. Click **Use this template → Create a new repository**
 3. Name it, make it private or public as your course requires, and create it
 4. Clone your new repository:
