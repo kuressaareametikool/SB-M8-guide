@@ -302,7 +302,7 @@ reorders my data".
 
 Results: 80.25, 80.25, 80.24.
 
-- **Round first:** 80.3 + 80.3 + 80.2 = 240.8 → average **80.27 → 80.3**
+- **Round first:** 80.3 + 80.3 + 80.2 = 240.8 → average 80.2666… → **80.3**
 - **Round once:** (80.25 + 80.25 + 80.24) / 3 = 80.2466… → **80.2**
 
 A tenth of a grade point, which is the difference between a 4 and a 5 on some scales. The rule —

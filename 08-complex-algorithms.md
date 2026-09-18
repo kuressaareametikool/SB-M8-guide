@@ -177,6 +177,10 @@ The outcome says *rakenduse osiseid* — application parts — as well as algori
 
 ### Caching
 
+None of these three features do anything until they are switched on: `@EnableCaching`, `@EnableAsync` and
+`@EnableScheduling` on a `@Configuration` class. Without them the annotations below are silently ignored,
+and "my cache does nothing" is the most common way to lose an afternoon here.
+
 ```java
 @Cacheable(value = "studyPlans", key = "#curriculumId")
 public StudyPlan planFor(Long curriculumId) { ... }

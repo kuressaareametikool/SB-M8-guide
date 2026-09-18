@@ -168,6 +168,9 @@ the purpose:
 
 ```java
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = NONE)      // keep real PostgreSQL (guide 11)
+@Import(ContainerConfig.class)
+@ImportAutoConfiguration(FlywayAutoConfiguration.class)   // the slice does not run migrations by itself
 class EnrolmentRepositoryTest {
 
     @Autowired private EnrolmentRepository repository;
@@ -203,7 +206,7 @@ JaCoCo gives a number; the number is a hint, not a goal.
 <plugin>
   <groupId>org.jacoco</groupId>
   <artifactId>jacoco-maven-plugin</artifactId>
-  <version>0.8.12</version>
+  <version>0.8.15</version>
   <executions>
     <execution><goals><goal>prepare-agent</goal></goals></execution>
     <execution>
@@ -229,6 +232,10 @@ JaCoCo gives a number; the number is a hint, not a goal.
   </executions>
 </plugin>
 ```
+
+The version matters: JaCoCo instruments bytecode, so a release older than your JDK cannot read your
+classes at all. On Java 26, 0.8.12 fails the build with
+`IllegalArgumentException: Unsupported class file major version 70`.
 
 Note the choices: **branch** coverage, not line, and only on the **domain** packages. 90% line coverage
 of getters proves nothing; 80% branch coverage of the grading algorithm is strong evidence.

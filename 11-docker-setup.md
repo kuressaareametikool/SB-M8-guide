@@ -75,9 +75,9 @@ a missing dependency in the runtime image, a wrong entrypoint, a file that only 
 ### Multi-stage: why three stages
 
 ```dockerfile
-FROM eclipse-temurin:26-jdk AS deps      # ~450 MB, has Maven, compilers, everything
+FROM maven:3.9-eclipse-temurin-26 AS deps   # ~600 MB, has Maven, the JDK, everything
 ...
-FROM eclipse-temurin:26-jre AS runtime   # ~200 MB, can only run
+FROM eclipse-temurin:26-jre AS runtime      # ~270 MB, can only run
 ```
 
 The build tools never reach the final image. That is smaller, faster to pull, and has a smaller attack
@@ -86,11 +86,14 @@ surface — a compiler in a production container is a gift to an attacker.
 ### Layer caching: order matters
 
 ```dockerfile
-COPY mvnw pom.xml ./
-RUN ./mvnw -B dependency:go-offline       # cached unless pom.xml changes
+COPY pom.xml ./
+RUN mvn -B dependency:go-offline          # cached unless pom.xml changes
 COPY src/ src/
-RUN ./mvnw -B clean package -DskipTests   # re-runs on any source change
+RUN mvn -B clean package -DskipTests      # re-runs on any source change
 ```
+
+(The template has no `mvnw` wrapper — Maven comes from the build image, so there is nothing to keep in
+sync with a wrapper script.)
 
 Copy the `pom.xml` alone first. Dependency download is the slow part, and it only needs to happen when
 dependencies change. Copying `src/` first would re-download every jar on every edit — a common and
@@ -108,6 +111,17 @@ the registry. Extracting into layers separates dependencies (rarely change, ~55 
 
 > `-Djarmode=tools ... extract` is the Boot 3.3+/4.x form. Older tutorials use
 > `-Djarmode=layertools -jar app.jar extract`, which is deprecated.
+
+Mind the entrypoint that goes with it. `extract --launcher` writes an **exploded** application — there is
+no jar left to run — so the container starts through the launcher class:
+
+```dockerfile
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+```
+
+`java -jar app.jar` belongs to the non-`--launcher` form, and with an exploded layout it fails with
+`Unable to access jarfile app.jar`. The quickest check is `docker run --rm --entrypoint sh <image> -c 'ls /app'`:
+if you see `BOOT-INF/` and `org/` rather than a jar, you need `JarLauncher`.
 
 ### Non-root
 
@@ -148,6 +162,23 @@ Without the health condition, Flyway runs against a database that is not listeni
 exits, and the student concludes Docker is broken. The `pg_isready` health check is what makes the
 dependency real.
 
+### Health checks and the shell you actually have
+
+`CMD-SHELL` runs the string in `/bin/sh`, and in the Temurin images that is **dash**, not bash. A
+healthcheck written with bash's `/dev/tcp` pseudo-device therefore never succeeds, and the container
+sits in `unhealthy` forever while the application is perfectly fine:
+
+```yaml
+# ❌ bash-only; fails with "cannot create /dev/tcp/...: Directory nonexistent"
+test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && ..."]
+
+# ✅ install curl in the runtime image and use it
+test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health | grep -q UP"]
+```
+
+A JRE image ships with neither curl nor wget, so adding one line of `apt-get install curl` is part of
+making a healthcheck work at all.
+
 ### Named volumes
 
 ```yaml
@@ -174,6 +205,11 @@ Optional services do not start by default. `docker compose --profile tools up` o
 
 This is the payoff for guide 06 and the reason H2 can be retired.
 
+Boot 4.1 manages **Testcontainers 2.x**, which renamed every artifact and moved the container classes
+into per-module packages. The Boot 3 coordinates (`org.testcontainers:postgresql`) no longer resolve at
+all — Maven fails with *'dependencies.dependency.version' is missing*, because the version comes from a
+BOM that no longer has an entry under that name.
+
 ```xml
 <dependency>
   <groupId>org.springframework.boot</groupId>
@@ -182,27 +218,39 @@ This is the payoff for guide 06 and the reason H2 can be retired.
 </dependency>
 <dependency>
   <groupId>org.testcontainers</groupId>
-  <artifactId>postgresql</artifactId>
+  <artifactId>testcontainers-postgresql</artifactId>   <!-- was: postgresql -->
+  <scope>test</scope>
+</dependency>
+<dependency>
+  <groupId>org.testcontainers</groupId>
+  <artifactId>testcontainers-junit-jupiter</artifactId> <!-- was: junit-jupiter -->
   <scope>test</scope>
 </dependency>
 ```
 
 ```java
+import org.testcontainers.postgresql.PostgreSQLContainer;   // was: org.testcontainers.containers
+
 @TestConfiguration(proxyBeanMethods = false)
 public class ContainerConfig {
 
     @Bean
     @ServiceConnection            // wires spring.datasource.* automatically
-    PostgreSQLContainer<?> postgres() {
-        return new PostgreSQLContainer<>("postgres:16-alpine");
+    PostgreSQLContainer postgres() {                 // 2.x dropped the self-type generic
+        return new PostgreSQLContainer("postgres:16-alpine");
     }
 }
 ```
+
+The old `org.testcontainers.containers.PostgreSQLContainer` is still in the jar as a deprecated shim,
+and it compiles — but `@ServiceConnection` does not recognise it, so the datasource is never wired and
+the test fails with *"Unable to determine Dialect without JDBC metadata"*. Import the new package.
 
 ```java
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = NONE)   // do NOT swap in an embedded database
 @Import(ContainerConfig.class)
+@ImportAutoConfiguration(FlywayAutoConfiguration.class)   // the slice runs no migrations by itself
 class EnrolmentRepositoryTest {
 
     @Autowired private EnrolmentRepository repository;
@@ -233,6 +281,20 @@ public class TestKursusePunktApplication {
 
 Run this class from the IDE and you get the application plus a throwaway PostgreSQL, with no compose
 file at all. No compose file, no manual cleanup.
+
+One trap: Surefire's default includes are `**/Test*.java`, `**/*Test.java` and `**/*Tests.java`, so a
+class named `TestKursusePunktApplication` is picked up as a test class and the whole run dies with
+*"Unable to create test class"*. Exclude it:
+
+```xml
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-surefire-plugin</artifactId>
+  <configuration>
+    <excludes><exclude>**/Test*Application.java</exclude></excludes>
+  </configuration>
+</plugin>
+```
 
 ---
 

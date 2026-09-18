@@ -294,8 +294,15 @@ Page the ids (no collection join, so SQL pagination works), then fetch the page'
 <details>
 <summary>E3.6 — a concurrency test</summary>
 
+`@DataJpaTest` replaces your datasource with an embedded one and does **not** auto-configure Flyway, so
+on this stack it needs the three extra annotations below — otherwise the slice starts against an empty
+schema and `ddl-auto=validate` fails. Guide 11 explains each one.
+
 ```java
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = NONE)
+@Import(ContainerConfig.class)
+@ImportAutoConfiguration(FlywayAutoConfiguration.class)
 class EnrolmentLockingTest {
 
     @Autowired private EnrolmentRepository repository;

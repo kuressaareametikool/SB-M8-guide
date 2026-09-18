@@ -33,21 +33,49 @@ names that no longer resolve:
 | Boot 3 | Boot 4 |
 |---|---|
 | `spring-boot-starter-web` | `spring-boot-starter-webmvc` |
-| `spring-boot-starter-test` | `spring-boot-starter-webmvc-test` (for web slice tests) |
+| Flyway auto-configuration inside `spring-boot-autoconfigure` | `org.springframework.boot:spring-boot-flyway` (a separate module) |
+| `@WebMvcTest` from `spring-boot-starter-test` | `org.springframework.boot:spring-boot-webmvc-test` |
+| `@DataJpaTest` from `spring-boot-starter-test` | `org.springframework.boot:spring-boot-data-jpa-test` |
+| `@AutoConfigureTestDatabase` from `spring-boot-starter-test` | `org.springframework.boot:spring-boot-jdbc-test` |
+
+`spring-boot-starter-test` still exists and is still what you depend on for JUnit, AssertJ and Mockito —
+but in Boot 4 it no longer drags the **test slices** in with it. Miss those modules and the tests do not
+compile; miss `spring-boot-flyway` and the application starts, runs no migrations at all, and fails with
+`Schema validation: missing table` because `ddl-auto=validate` is looking at an empty database.
+
+The packages moved with the modules, which is the other thing no Boot 3 tutorial will tell you:
+
+| Boot 3 import | Boot 4 import |
+|---|---|
+| `org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest` | `org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest` |
+| `org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest` | `org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest` |
+| `org.springframework.boot.test.autoconfigure.orm.jpa.AutoConfigureTestDatabase` | `org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase` |
 
 Add manually to `pom.xml`:
 
 ```xml
 <dependency>
-  <groupId>com.h2database</groupId>
-  <artifactId>h2</artifactId>
-  <scope>test</scope>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-flyway</artifactId>
 </dependency>
 <dependency>
   <groupId>org.springdoc</groupId>
   <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 </dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-webmvc-test</artifactId>
+  <scope>test</scope>
+</dependency>
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-data-jpa-test</artifactId>
+  <scope>test</scope>
+</dependency>
 ```
+
+There is no H2 dependency, deliberately: tests run against real PostgreSQL through Testcontainers
+(guide 11).
 
 Most Spring Boot material online targets Boot 3 or earlier. If a snippet uses
 `spring-boot-starter-web`, `@MockBean`, or `javax.*` imports, it is out of date for this project.
@@ -131,10 +159,12 @@ the specific choice.
 <plugin>
   <groupId>com.diffplug.spotless</groupId>
   <artifactId>spotless-maven-plugin</artifactId>
-  <version>2.43.0</version>
+  <version>2.44.5</version>
   <configuration>
     <java>
-      <googleJavaFormat/>
+      <googleJavaFormat>
+        <version>1.27.0</version>
+      </googleJavaFormat>
       <removeUnusedImports/>
       <trimTrailingWhitespace/>
       <endWithNewline/>
@@ -148,6 +178,10 @@ the specific choice.
   </executions>
 </plugin>
 ```
+
+Both versions matter on Java 26: Spotless 2.43.0 bundles a google-java-format built against an older
+`javac`, and the build dies with
+`NoSuchMethodError: com.sun.tools.javac.util.Log$DeferredDiagnosticHandler.getDiagnostics()`.
 
 - `make mvn ARGS=spotless:apply` — fixes
 - `make mvn ARGS=spotless:check` — verifies

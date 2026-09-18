@@ -50,10 +50,14 @@ http://localhost:8080/swagger-ui.html
 ## Configuration
 | Variable | Default | Description |
 |---|---|---|
-| `DB_URL` | `jdbc:postgresql://localhost:5432/kursusepunkt` | Database URL |
-| `DB_USER` | `app` | Database user |
-| `DB_PASSWORD` | `app` | Database password (never commit a real one) |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/kursusepunkt` | Database URL (compose sets host `db`) |
+| `SPRING_DATASOURCE_USERNAME` | `app` | Database user |
+| `SPRING_DATASOURCE_PASSWORD` | `app` | Database password (never commit a real one) |
+| `APP_PORT` | `8080` | Port the API is published on |
 | `GRADING_PASS_MARK` | `50.0` | Minimum passing grade |
+
+Document the names the application actually reads. Inventing a tidier name in the README is exactly the
+kind of drift the fresh-eyes test in E9.6 catches.
 
 ## Running the tests
 ```bash

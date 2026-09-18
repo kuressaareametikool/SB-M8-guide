@@ -13,7 +13,7 @@ containerised — you need Docker and Git, and no local JDK, Maven or PostgreSQL
 Start from the template repository, which has a working skeleton and the container setup already
 committed:
 
-**https://github.com/<your-org>/tak24-spring-template** → *Use this template*
+**https://github.com/kuressaareametikool/SB-M8-template** → *Use this template*
 
 ```bash
 git clone https://github.com/<you>/kursusepunkt.git
@@ -68,16 +68,18 @@ bike-rental service.
 | Tool | Version | Notes |
 |---|---|---|
 | Java | 26 | JDK 25 is the current LTS; nothing here needs a 26-only feature |
-| Spring Boot | 4.1.x | Spring Framework 7, modular starters |
+| Spring Boot | 4.1.x | Spring Framework 7, modular starters and modular test slices |
 | Hibernate | 7 | via Spring Data JPA |
-| PostgreSQL | 16 | H2 in tests |
-| Flyway | 12 | versioned migrations, `ddl-auto=validate` |
+| PostgreSQL | 16 | also in tests, via Testcontainers — no H2 |
+| Flyway | 12 | versioned migrations, `ddl-auto=validate`; needs `spring-boot-flyway` on Boot 4 |
 | JUnit 5 + Mockito 5 + AssertJ | current | `@MockitoBean`, `MockMvcTester` |
 | springdoc-openapi | current | API documentation |
 | Spotless + Google Java Format | current | enforced in the build |
 
 > Most Spring Boot material online still targets Boot 3. `spring-boot-starter-web`, `@MockBean` and
 > `javax.*` imports are the tells. Check which version a snippet was written for before using it.
+> Boot 4 also moved the test slices (`@WebMvcTest`, `@DataJpaTest`) into their own modules and their
+> own packages — see guide 01.
 
 ## How each guide is structured
 

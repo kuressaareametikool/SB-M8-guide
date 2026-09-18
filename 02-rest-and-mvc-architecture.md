@@ -283,7 +283,9 @@ class ArchitectureTest {
 }
 ```
 
-Adapt the packages to your feature-first layout.
+Adapt the packages to your feature-first layout. Use ArchUnit **1.5.0 or newer**: older releases cannot
+read Java 26 class files, so they import zero classes and every rule fails with *"failed to check any
+classes"* — which looks like a broken rule rather than a broken parser.
 
 ### E2.4 — Pagination (intermediate)
 Return `Page<CourseResponse>` from the list endpoint and document the query parameters.
